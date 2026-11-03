@@ -46,11 +46,15 @@ impl<R: deadpool::managed::Manager> SquashFs<R> {
     }
     fn getattr_inode(&self, ino: u32) -> Result<fuser::FileAttr, Error> {
         if let Some(f) = self.inode_table.files.get(&ino) {
-            Ok(fuser_async::utils::file_attr(
+            let mut attr = fuser_async::utils::file_attr(
                 self.ino_to_fuse(ino),
                 f.file_size(),
                 UNIX_EPOCH,
-            ))
+            );
+
+            attr.perm = 0o777;
+
+            Ok(attr)
         } else {
             let directory = self
                 .inode_table
@@ -67,7 +71,7 @@ impl<R: deadpool::managed::Manager> SquashFs<R> {
                 ctime: UNIX_EPOCH,
                 crtime: UNIX_EPOCH,
                 kind: fuser::FileType::Directory,
-                perm: 0o755,
+                perm: 0o777,
                 nlink: directory.hard_link_count(),
                 uid: 501,
                 gid: 20,
