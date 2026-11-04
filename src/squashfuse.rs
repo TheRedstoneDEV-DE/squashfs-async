@@ -7,6 +7,24 @@ use fuser_async::{utils::BLOCK_SIZE, DirEntry};
 
 use crate::{Error, SquashFs};
 
+use std::sync::LazyLock;
+
+#[derive(Debug, Clone, Copy)]
+pub struct Ids {
+    pub uid: u32,
+    pub gid: u32,
+}
+
+
+pub static IDS: LazyLock<Ids> = LazyLock::new(|| {
+    unsafe {
+        Ids {
+            uid: libc::getuid(),
+            gid: libc::getgid(),
+        }
+    }
+});
+
 impl From<&super::directory_table::Entry> for DirEntry {
     fn from(e: &super::directory_table::Entry) -> Self {
         DirEntry {
@@ -51,8 +69,9 @@ impl<R: deadpool::managed::Manager> SquashFs<R> {
                 f.file_size(),
                 UNIX_EPOCH,
             );
-
-            attr.perm = 0o777;
+            
+            attr.uid = IDS.uid;
+            attr.gid = IDS.gid;
 
             Ok(attr)
         } else {
@@ -71,10 +90,10 @@ impl<R: deadpool::managed::Manager> SquashFs<R> {
                 ctime: UNIX_EPOCH,
                 crtime: UNIX_EPOCH,
                 kind: fuser::FileType::Directory,
-                perm: 0o777,
+                perm: 0o755,
                 nlink: directory.hard_link_count(),
-                uid: 501,
-                gid: 20,
+                uid: IDS.uid,
+                gid: IDS.gid,
                 rdev: 0,
                 flags: 0,
                 blksize: BLOCK_SIZE,
